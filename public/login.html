@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LiveTrack — Sign In</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --primary: #6366f1;
+        --primary-dark: #4f46e5;
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --surface2: #334155;
+        --text: #f1f5f9;
+        --text-muted: #94a3b8;
+        --border: #334155;
+        --danger: #ef4444;
+      }
+
+      body {
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 40px 36px;
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 32px;
+      }
+
+      .brand-icon {
+        width: 44px;
+        height: 44px;
+        background: linear-gradient(135deg, var(--primary), #818cf8);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+      }
+
+      .brand-text h1 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+      }
+
+      .brand-text p {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+
+      label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      input {
+        width: 100%;
+        padding: 11px 14px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 0.95rem;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+
+      input:focus { border-color: var(--primary); }
+      input::placeholder { color: var(--text-muted); }
+
+      .btn {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, var(--primary), #818cf8);
+        border: none;
+        border-radius: 10px;
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 8px;
+        transition: opacity 0.2s, transform 0.1s;
+        box-shadow: 0 2px 12px rgba(99,102,241,0.4);
+      }
+
+      .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+      .btn:active:not(:disabled) { transform: translateY(0); }
+      .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      .error-msg {
+        background: rgba(239,68,68,0.15);
+        border: 1px solid rgba(239,68,68,0.3);
+        color: #fca5a5;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 0.83rem;
+        margin-bottom: 16px;
+        display: none;
+      }
+
+      .error-msg.visible { display: block; }
+
+      .demo-hint {
+        margin-top: 24px;
+        padding: 14px;
+        background: var(--surface2);
+        border-radius: 10px;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
+
+      .demo-hint strong { color: var(--text); display: block; margin-bottom: 6px; }
+
+      .demo-hint table { width: 100%; border-collapse: collapse; }
+      .demo-hint td { padding: 3px 6px; }
+      .demo-hint td:first-child { color: var(--text); font-weight: 600; }
+
+      .spinner {
+        display: inline-block;
+        width: 14px; height: 14px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="brand">
+        <div class="brand-icon">📍</div>
+        <div class="brand-text">
+          <h1>LiveTrack</h1>
+          <p>Real-time location sharing</p>
+        </div>
+      </div>
+
+      <div class="error-msg" id="errorMsg" role="alert"></div>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            placeholder="e.g. alice"
+            autocomplete="username"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+        <button type="submit" class="btn" id="submitBtn">Sign In</button>
+      </form>
+
+      <div class="demo-hint">
+        <strong>Demo accounts</strong>
+        <table>
+          <tr><td>alice</td><td>alice123</td></tr>
+          <tr><td>bob</td><td>bob123</td></tr>
+          <tr><td>carol</td><td>carol123</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      const form      = document.getElementById('loginForm');
+      const errorMsg  = document.getElementById('errorMsg');
+      const submitBtn = document.getElementById('submitBtn');
+
+      function showError(msg) {
+        errorMsg.textContent = msg;
+        errorMsg.classList.add('visible');
+      }
+
+      function clearError() {
+        errorMsg.classList.remove('visible');
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearError();
+
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        if (!username || !password) {
+          showError('Please enter both username and password.');
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner"></span>Signing in…';
+
+        try {
+          const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            showError(data.error ?? 'Login failed. Please try again.');
+            return;
+          }
+
+          // Redirect to main app
+          window.location.href = '/';
+        } catch (err) {
+          showError('Network error. Is the server running?');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Sign In';
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LiveTrack — Real-time Location Sharing</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --primary: #6366f1;
+        --danger: #ef4444;
+        --success: #22c55e;
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --surface2: #334155;
+        --text: #f1f5f9;
+        --text-muted: #94a3b8;
+        --border: #334155;
+        --shadow: 0 4px 24px rgba(0,0,0,0.4);
+      }
+
+      body {
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* ── Header ── */
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        height: 56px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+        z-index: 1000;
+        gap: 12px;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        flex-shrink: 0;
+      }
+
+      .logo-icon {
+        width: 32px; height: 32px;
+        background: linear-gradient(135deg, var(--primary), #818cf8);
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px;
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        background: var(--surface2);
+        padding: 4px 10px;
+        border-radius: 20px;
+        white-space: nowrap;
+      }
+
+      .conn-dot {
+        width: 7px; height: 7px;
+        border-radius: 50%;
+        background: var(--text-muted);
+        transition: background 0.3s;
+        flex-shrink: 0;
+      }
+      .conn-dot.connected    { background: var(--success); box-shadow: 0 0 6px var(--success); }
+      .conn-dot.disconnected { background: var(--danger); }
+
+      .user-badge {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        background: var(--surface2);
+        padding: 4px 12px;
+        border-radius: 20px;
+      }
+
+      .user-avatar-sm {
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), #818cf8);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 700;
+        flex-shrink: 0;
+      }
+
+      .logout-btn {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .logout-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+      /* ── Layout ── */
+      .main { display: flex; flex: 1; overflow: hidden; }
+
+      /* ── Sidebar ── */
+      .sidebar {
+        width: 280px;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+
+      .sidebar-section {
+        padding: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .sidebar-section h3 {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+      }
+
+      /* Share button */
+      #shareBtn {
+        width: 100%;
+        padding: 11px 16px;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--primary), #818cf8);
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: opacity 0.2s, transform 0.1s;
+        box-shadow: 0 2px 12px rgba(99,102,241,0.4);
+      }
+      #shareBtn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+      #shareBtn:active:not(:disabled) { transform: translateY(0); }
+      #shareBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+      #shareBtn.sharing {
+        background: linear-gradient(135deg, var(--danger), #f87171);
+        box-shadow: 0 2px 12px rgba(239,68,68,0.4);
+      }
+
+      /* Status card */
+      .status-card {
+        background: var(--surface2);
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 10px;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+      }
+      .status-card.error   { color: #fca5a5; background: rgba(239,68,68,0.15); }
+      .status-card.success { color: #86efac; background: rgba(34,197,94,0.12); }
+      .status-card.info    { color: #93c5fd; background: rgba(99,102,241,0.12); }
+      .status-icon { font-size: 1rem; flex-shrink: 0; }
+
+      /* Coords */
+      .coords { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+      .coord-box { background: var(--surface2); border-radius: 8px; padding: 8px 10px; }
+      .coord-box label {
+        display: block; font-size: 0.65rem; text-transform: uppercase;
+        letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 2px;
+      }
+      .coord-box span {
+        font-size: 0.8rem; font-weight: 600;
+        font-variant-numeric: tabular-nums; color: var(--text);
+      }
+
+      /* Users list */
+      .users-list { flex: 1; overflow-y: auto; padding: 12px 16px; }
+      .users-list h3 {
+        font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 10px;
+      }
+
+      .user-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 8px 10px; border-radius: 8px; margin-bottom: 4px;
+        background: var(--surface2); font-size: 0.82rem;
+        cursor: pointer; transition: background 0.15s;
+        animation: fadeIn 0.3s ease;
+      }
+      .user-item:hover { background: #3d5068; }
+      .user-item.me { border-left: 3px solid var(--primary); }
+
+      .user-avatar {
+        width: 28px; height: 28px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+      }
+      .user-info { flex: 1; min-width: 0; }
+      .user-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .user-coords { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
+
+      .pulse {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--success); flex-shrink: 0;
+        animation: pulse 2s infinite;
+      }
+
+      /* Map */
+      #map { flex: 1; z-index: 1; }
+
+      /* Leaflet dark */
+      .leaflet-container { background: #1a2332; }
+      .leaflet-tile { filter: brightness(0.85) saturate(0.9); }
+      .leaflet-popup-content-wrapper {
+        background: var(--surface); color: var(--text);
+        border: 1px solid var(--border); border-radius: 10px;
+        box-shadow: var(--shadow);
+      }
+      .leaflet-popup-tip { background: var(--surface); }
+
+      /* Toast */
+      #toast {
+        position: fixed; bottom: 24px; left: 50%;
+        transform: translateX(-50%) translateY(80px);
+        background: var(--surface); color: var(--text);
+        padding: 10px 20px; border-radius: 10px; font-size: 0.85rem;
+        border: 1px solid var(--border); box-shadow: var(--shadow);
+        z-index: 9999;
+        transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+        white-space: nowrap;
+      }
+      #toast.show { transform: translateX(-50%) translateY(0); }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes pulse {
+        0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+        50%      { box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+      }
+
+      @media (max-width: 600px) {
+        .sidebar { width: 100%; height: 220px; border-right: none; border-bottom: 1px solid var(--border); }
+        .main { flex-direction: column; }
+        .users-list { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <header>
+      <div class="logo">
+        <div class="logo-icon">📍</div>
+        LiveTrack
+      </div>
+      <div class="header-right">
+        <div class="badge">
+          <span id="onlineCount">0</span>&nbsp;online
+        </div>
+        <div class="badge">
+          <div class="conn-dot disconnected" id="connDot"></div>
+          <span id="connLabel">Connecting…</span>
+        </div>
+        <div class="user-badge" id="userBadge" style="display:none">
+          <div class="user-avatar-sm" id="userInitial">?</div>
+          <span id="userDisplayName">…</span>
+        </div>
+        <button class="logout-btn" id="logoutBtn">Sign out</button>
+      </div>
+    </header>
+
+    <div class="main">
+      <aside class="sidebar">
+        <div class="sidebar-section">
+          <h3>My Location</h3>
+          <button id="shareBtn">
+            <span id="shareBtnIcon">📡</span>
+            <span id="shareBtnText">Share My Location</span>
+          </button>
+          <div class="status-card" id="statusCard">
+            <span class="status-icon">💡</span>
+            <span id="statusText">Click the button to start sharing your location.</span>
+          </div>
+          <div class="coords" id="coordsBox" style="display:none">
+            <div class="coord-box"><label>Latitude</label><span id="myLat">—</span></div>
+            <div class="coord-box"><label>Longitude</label><span id="myLng">—</span></div>
+          </div>
+        </div>
+        <div class="users-list">
+          <h3>Active Users</h3>
+          <div id="usersList"></div>
+        </div>
+      </aside>
+      <div id="map"></div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+
+    <!-- Socket.IO: local first, CDN fallback -->
+    <script>
+      (function () {
+        var s = document.createElement('script');
+        s.src = '/socket.io/socket.io.js';
+        s.onerror = function () {
+          var fb = document.createElement('script');
+          fb.src = 'https://cdn.socket.io/4.8.1/socket.io.min.js';
+          document.head.appendChild(fb);
+        };
+        document.head.appendChild(s);
+      })();
+    </script>
+
+    <script>
+      // ── Wait for socket.io ────────────────────────────────────────────────
+      function waitForIO(cb) {
+        if (typeof io !== 'undefined') { cb(); return; }
+        setTimeout(() => waitForIO(cb), 50);
+      }
+
+      // ── Colour helpers ────────────────────────────────────────────────────
+      const COLORS = ['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ef4444','#14b8a6'];
+      function colorFor(id) {
+        let h = 0;
+        for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+        return COLORS[h % COLORS.length];
+      }
+      function initials(name) { return name ? name.slice(0,2).toUpperCase() : '??'; }
+
+      // ── Toast ─────────────────────────────────────────────────────────────
+      function showToast(msg, duration = 3000) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.classList.remove('show'), duration);
+      }
+
+      // ── Status card ───────────────────────────────────────────────────────
+      function setStatus(type, icon, text) {
+        const card = document.getElementById('statusCard');
+        card.className = 'status-card ' + type;
+        card.querySelector('.status-icon').textContent = icon;
+        document.getElementById('statusText').textContent = text;
+      }
+
+      // ── Geolocation ───────────────────────────────────────────────────────
+      function geoErrorMessage(err) {
+        switch (err.code) {
+          case 1: return 'Location permission denied. Allow access in browser settings.';
+          case 2: return 'Location unavailable. Check your GPS or network.';
+          case 3: return 'Location request timed out. Try again.';
+          default: return 'Unknown geolocation error.';
+        }
+      }
+
+      function getCurrentLocation() {
+        return new Promise((resolve, reject) => {
+          if (!('geolocation' in navigator)) {
+            reject(new Error('Geolocation is not supported by this browser.'));
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+            (err) => reject(err),
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+          );
+        });
+      }
+
+      // ── App ───────────────────────────────────────────────────────────────
+      waitForIO(function () {
+        const socket = io({ reconnectionDelay: 1000, reconnectionAttempts: 10 });
+
+        // Map
+        const map = L.map('map', { zoomControl: true }).setView([20, 0], 2);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        }).addTo(map);
+
+        // State
+        const remoteMarkers = new Map();  // userId → L.marker
+        const activeUsers   = new Map();  // userId → { displayName, latitude, longitude }
+        let myCurrentLocationMarker = null;
+        let sharingInterval = null;
+        let isSharing = false;
+        let myUserId = null;
+        let myDisplayName = null;
+
+        // ── Connection ────────────────────────────────────────────────────
+        const connDot   = document.getElementById('connDot');
+        const connLabel = document.getElementById('connLabel');
+
+        socket.on('connect', () => {
+          connDot.className = 'conn-dot connected';
+          connLabel.textContent = 'Connected';
+          showToast('✅ Connected to server');
+        });
+
+        socket.on('disconnect', (reason) => {
+          connDot.className = 'conn-dot disconnected';
+          connLabel.textContent = 'Disconnected';
+          showToast('⚠️ Disconnected: ' + reason);
+        });
+
+        socket.on('connect_error', (err) => {
+          connDot.className = 'conn-dot disconnected';
+          connLabel.textContent = 'Error';
+          // If auth error, redirect to login
+          if (err.message === 'Unauthenticated') {
+            window.location.href = '/login';
+          }
+        });
+
+        // ── Identity (server tells us who we are) ─────────────────────────
+        socket.on('server:identity', ({ userId, displayName }) => {
+          myUserId = userId;
+          myDisplayName = displayName;
+          document.getElementById('userBadge').style.display = 'flex';
+          document.getElementById('userDisplayName').textContent = displayName;
+          document.getElementById('userInitial').textContent = initials(displayName);
+        });
+
+        // ── Server error ──────────────────────────────────────────────────
+        socket.on('server:error', ({ message }) => {
+          setStatus('error', '❌', message);
+          showToast('❌ ' + message, 5000);
+        });
+
+        // ── Receive location updates ──────────────────────────────────────
+        socket.on('server:location:update', (data) => {
+          const { userId, displayName, latitude, longitude } = data;
+
+          // Don't render a remote marker for ourselves
+          if (userId === myUserId) return;
+
+          activeUsers.set(userId, { displayName, latitude, longitude });
+          renderUsersList();
+          updateOnlineCount();
+
+          const color = colorFor(userId);
+          const popupContent = () =>
+            `<b style="color:${color}">${displayName}</b><br>` +
+            `<small>${latitude.toFixed(5)}, ${longitude.toFixed(5)}</small>`;
+
+          if (!remoteMarkers.has(userId)) {
+            const icon = L.divIcon({
+              className: '',
+              html: `<div style="
+                width:32px;height:32px;border-radius:50% 50% 50% 0;
+                background:${color};border:3px solid #fff;
+                transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.4);
+              "></div>`,
+              iconSize: [32, 32],
+              iconAnchor: [16, 32],
+            });
+            const marker = L.marker([latitude, longitude], { icon })
+              .addTo(map)
+              .bindPopup(popupContent());
+            remoteMarkers.set(userId, marker);
+          } else {
+            const m = remoteMarkers.get(userId);
+            m.setLatLng([latitude, longitude]);
+            m.getPopup().setContent(popupContent());
+          }
+        });
+
+        // ── User disconnected ─────────────────────────────────────────────
+        socket.on('server:user:disconnected', ({ userId }) => {
+          if (userId === myUserId) return;
+          const user = activeUsers.get(userId);
+          if (user) showToast(`👋 ${user.displayName} went offline`);
+          activeUsers.delete(userId);
+          if (remoteMarkers.has(userId)) {
+            remoteMarkers.get(userId).remove();
+            remoteMarkers.delete(userId);
+          }
+          renderUsersList();
+          updateOnlineCount();
+        });
+
+        // ── Users list ────────────────────────────────────────────────────
+        function renderUsersList() {
+          const list = document.getElementById('usersList');
+          list.innerHTML = '';
+          activeUsers.forEach(({ displayName, latitude, longitude }, userId) => {
+            const color = colorFor(userId);
+            const isMe = userId === myUserId;
+            const div = document.createElement('div');
+            div.className = 'user-item' + (isMe ? ' me' : '');
+            div.innerHTML = `
+              <div class="user-avatar" style="background:${color}22;color:${color}">${initials(displayName)}</div>
+              <div class="user-info">
+                <div class="user-name">${displayName}${isMe ? ' (You)' : ''}</div>
+                <div class="user-coords">${latitude.toFixed(4)}, ${longitude.toFixed(4)}</div>
+              </div>
+              <div class="pulse"></div>
+            `;
+            div.addEventListener('click', () => map.flyTo([latitude, longitude], 14));
+            list.appendChild(div);
+          });
+        }
+
+        function updateOnlineCount() {
+          document.getElementById('onlineCount').textContent = activeUsers.size;
+        }
+
+        // ── Share button ──────────────────────────────────────────────────
+        const shareBtn     = document.getElementById('shareBtn');
+        const shareBtnIcon = document.getElementById('shareBtnIcon');
+        const shareBtnText = document.getElementById('shareBtnText');
+
+        shareBtn.addEventListener('click', () => {
+          isSharing ? stopSharing() : startSharing();
+        });
+
+        async function startSharing() {
+          shareBtn.disabled = true;
+          setStatus('info', '⏳', 'Requesting location permission…');
+          try {
+            await sendLocation();
+          } catch (err) {
+            shareBtn.disabled = false;
+            const msg = err.code ? geoErrorMessage(err) : err.message;
+            setStatus('error', '❌', msg);
+            showToast('❌ ' + msg, 5000);
+            return;
+          }
+          isSharing = true;
+          shareBtn.disabled = false;
+          shareBtn.classList.add('sharing');
+          shareBtnIcon.textContent = '⏹';
+          shareBtnText.textContent = 'Stop Sharing';
+          setStatus('success', '📡', 'Sharing your location every 10 seconds.');
+          document.getElementById('coordsBox').style.display = 'grid';
+          sharingInterval = setInterval(async () => {
+            try { await sendLocation(); }
+            catch (err) { setStatus('error', '⚠️', err.code ? geoErrorMessage(err) : err.message); }
+          }, 10_000);
+        }
+
+        function stopSharing() {
+          isSharing = false;
+          clearInterval(sharingInterval);
+          sharingInterval = null;
+          shareBtn.classList.remove('sharing');
+          shareBtnIcon.textContent = '📡';
+          shareBtnText.textContent = 'Share My Location';
+          setStatus('', '💡', 'Location sharing stopped.');
+          showToast('📍 Location sharing stopped');
+        }
+
+        async function sendLocation() {
+          const { latitude, longitude } = await getCurrentLocation();
+          socket.emit('client:location:update', { latitude, longitude });
+
+          // Update own marker
+          if (!myCurrentLocationMarker) {
+            const myIcon = L.divIcon({
+              className: '',
+              html: `<div style="
+                width:36px;height:36px;border-radius:50%;
+                background:#6366f1;border:3px solid #fff;
+                box-shadow:0 0 0 4px rgba(99,102,241,0.35),0 2px 8px rgba(0,0,0,0.4);
+                display:flex;align-items:center;justify-content:center;font-size:16px;
+              ">🧑</div>`,
+              iconSize: [36, 36],
+              iconAnchor: [18, 18],
+            });
+            myCurrentLocationMarker = L.marker([latitude, longitude], { icon: myIcon })
+              .addTo(map)
+              .bindPopup(`<b>${myDisplayName ?? 'You'}</b><br><small>You are here</small>`);
+            map.flyTo([latitude, longitude], 14);
+          } else {
+            myCurrentLocationMarker.setLatLng([latitude, longitude]);
+          }
+
+          document.getElementById('myLat').textContent = latitude.toFixed(6);
+          document.getElementById('myLng').textContent = longitude.toFixed(6);
+
+          // Add self to users list
+          if (myUserId) {
+            activeUsers.set(myUserId, { displayName: myDisplayName ?? 'You', latitude, longitude });
+            renderUsersList();
+            updateOnlineCount();
+          }
+        }
+
+        // ── Logout ────────────────────────────────────────────────────────
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+          stopSharing();
+          await fetch('/api/logout', { method: 'POST' });
+          window.location.href = '/login';
+        });
+      });
+    </script>
+  </body>
+</html>
