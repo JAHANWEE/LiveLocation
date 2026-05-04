@@ -137,3 +137,5 @@ Topic: location-updates (2 partitions)
   └─► Consumer group: database-processor
         └─► Buffers events → batch INSERT every 5 seconds
 ```
+
+Happy Learning !
