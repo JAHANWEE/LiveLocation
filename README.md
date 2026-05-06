@@ -3,6 +3,7 @@
 A real-time live location tracking system built with **Node.js**, **Socket.IO**, **Kafka**, and **Leaflet**. Multiple authenticated users can share their GPS location and watch each other move on a live map.
 
 ---
+**Video Link** : https://youtu.be/oIlGAEGztqo
 
 ## Tech Stack
 
